@@ -2,6 +2,8 @@ package michael.gutin;
 
 import java.util.ArrayList;
 
+import android.util.Log;
+
 public class Unit extends TileEntity {
 	
 	public int type;
@@ -68,8 +70,8 @@ public class Unit extends TileEntity {
 	
 	public int getSprite(int frame)
 	{
-		if(team == 1 && type ==305){
-			return type+2*team+1+frame/50;
+		if(team == 1 && type ==305 && !hasActed){
+			return type+2*team+1+frame%2;
 		}
 		return type+2*team+1; 
 	}
@@ -101,12 +103,34 @@ public class Unit extends TileEntity {
     @SuppressWarnings("static-access")
 	public void Wait(GameView field)
     {
+    	if(field.cursor == null || field.tileAt(field.cursor) == null || field.tileAt(field.cursor).unit == null){
+    		Log.e("Null variable", "Cursor or Cursor Tile or Cursor Tile Unit is null in Wait");
+    	}
     	field.tileAt(field.cursor).unit.hasActed = true;
     	field.finishAction();
     	field.action = field.NOTHING;
     }
+    
+    /**
+     * Which action a unit performs is no longer given explicitly, instead it must be derived from the game state
+     * @param field
+     */
+    public void performAction(GameView field){
+    	if(field == null || field.cursor == null){
+    		Log.e("Null variable", "Perform action has null field or cursor");
+    	}
+    	if(field.tileAt(field.cursor).unit == this){
+    		Wait(field);
+    	}else if(field.contains(field.selectedAttack, field.cursor)){
+    		attack(field, false, field.selected, field.cursor);
+    	}else{
+    		field.denyPressed();
+    	}
+    }
+    
+
 	
-	
+	@Deprecated
 	public void performAction(int index, GameView field)
 	{
 		if(index == WAIT) Wait(field);
@@ -118,7 +142,7 @@ public class Unit extends TileEntity {
 	
     public void attackchoice(GameView field)
     {
-    	field.limitCursor(field.selectedAttack);
+    	//field.field.limitCursor(field.selectedAttack);
     	field.action = ATTACK2;
     }
     
@@ -126,11 +150,15 @@ public class Unit extends TileEntity {
     {
     	Tile attacker = field.tileAt(att);
     	Tile target = field.tileAt(tar);
+    	if(!field.cursor.equals(tar)){
+    		field.denyPressed();
+    		return;
+    	}
     	
     	damage(attacker, target);
     	
     	if(target.unit.isDead()) field.destroyUnit(tar);
-    	else if(!counter && field.isInAttackRange(tar, att))	target.unit.performAction(Unit.COUNTERATTACK,field);
+    	else if(!counter && field.isInAttackRange(tar, att))	attack(field,true, field.cursor,field.selected);
     	
     	if(!counter)
     	{
@@ -163,19 +191,19 @@ public class Unit extends TileEntity {
 	{
 		this.type = type;
 		this.team = team;
-		if(type == 301)
+		if(type == GameView.DUDE)
 		{
 			float[] attack = {4,1,2};
 			Set(2,FOOT,attack,9,4,INFANTRY,1,2, 100);
 			return;
 		}
-		if(type == 305)
+		if(type == GameView.TANK)
 		{
 			float[] attack = {5,4,7};
 			Set(5,TANK,attack,5,4,ARMOR,1,1,1000);
 			return;
 		}
-		if(type == 309)
+		if(type == GameView.RECON)
 		{
 			float[] attack = {7,2,5};
 			Set(7,WHEEL,attack,6,5,LIGHTARMOR,1,1,500);

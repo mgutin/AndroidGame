@@ -30,6 +30,7 @@ import android.graphics.Color;
 import android.os.Handler;
 import android.os.Message;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.os.Bundle;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
@@ -134,8 +135,12 @@ public class GameView extends TileView {
         }
 
         public void sleep(long delayMillis) {
-        	this.removeMessages(0);
-            sendMessageDelayed(obtainMessage(0), delayMillis);
+        	try{
+        		this.removeMessages(0);
+            	sendMessageDelayed(obtainMessage(0), delayMillis);
+        	}catch(NullPointerException e){
+        		e.printStackTrace();
+        	}
         }
     };
 
@@ -526,49 +531,57 @@ public class GameView extends TileView {
     
     public void acceptPressed(boolean touched)
     {
-    	if(drawCursor && tileAt(cursor)==null)//this actually should ever happen, but for now if it does I'd rather it ignore the key press rather then crash
-    	{
-    		System.out.println("Null cursor");
-    		finishAction();
-    		return;
+    	try{
+	    	if(drawCursor && tileAt(cursor)==null)//this actually should ever happen, but for now if it does I'd rather it ignore the key press rather then crash
+	    	{
+	    		Log.e("Null variable","Cursor is null in acceptPressed");
+	    		finishAction();
+	    		return;
+	    	}
+	    		
+	    	if(action == BUILD)	
+	    	{
+	    		tileAt(selected).building.tryPurchase(0, this);
+	    		finishAction();
+	    	}
+	    	
+	    	if(action==NOTHING)
+	    	{
+	    		if(tileAt(cursor).unit!=null )
+	    		{
+	    			 if(tileAt(cursor).unit.team==currentTurn && !tileAt(cursor).unit.hasActed)	selectUnit();
+	    		}
+	
+	    		else if(tileAt(cursor).building!=null /*&& tileAt(cursor).building.getTeam()==currentTurn*/)
+	    		{
+	    			selectBuilding();
+	    		}
+	    	}
+	    	else if (action == MOVING)
+	    	{
+	    		if((tileAt(cursor).unit==null && (contains(selectedMove,cursor)) || cursor.equals(selected)))
+	    		{
+	    			move();
+	    			drawCursor=false;
+	    			nextActionIndex=0;
+	    			curActionList = tileAt(selected).unit.getChoices(this);
+	    		}else{
+	    			denyPressed();
+	    		}
+	    	}
+	    	
+	    	else if (action == CHOOSING)
+	    	{
+	    		//action = curActionList[nextActionIndex];
+	    		tileAt(selected).unit.performAction(this);
+	    	}
+	    	else{
+	    		Log.i("Deprecated", "Using deprecated method in acceptPressed");
+	    		tileAt(selected).unit.performAction(action,this);
+	    	}
+    	}catch(NullPointerException e){
+    		Log.e("Null variable", "Something is null in accept pressed");
     	}
-    		
-    	if(action == BUILD)	
-    	{
-    		tileAt(selected).building.tryPurchase(0, this);
-    		finishAction();
-    	}
-    	
-    	if(action==NOTHING)
-    	{
-    		if(tileAt(cursor).unit!=null )
-    		{
-    			 if(tileAt(cursor).unit.team==currentTurn && !tileAt(cursor).unit.hasActed)	selectUnit();
-    		}
-
-    		else if(tileAt(cursor).building!=null /*&& tileAt(cursor).building.getTeam()==currentTurn*/)
-    		{
-    			selectBuilding();
-    		}
-    	}
-    	else if (action == MOVING)
-    	{
-    		if((tileAt(cursor).unit==null && (contains(selectedMove,cursor)) || cursor.equals(selected)))
-    		{
-    			move();
-    			drawCursor=false;
-    			nextActionIndex=0;
-    			curActionList = tileAt(selected).unit.getChoices(this);
-    		}
-    	}
-    	
-    	else if (action == CHOOSING)
-    	{
-    		action = curActionList[nextActionIndex];
-    		tileAt(selected).unit.performAction(action,this);
-    	}
-    	else
-    		tileAt(selected).unit.performAction(action,this);
     }
     
     
@@ -581,43 +594,47 @@ public class GameView extends TileView {
     
     public boolean onTouchEvent(MotionEvent event)
     {
-    	super.onTouchEvent(event);
-    	testint = 1;
-    	float xDif=0;
-    	float yDif=0;
-    	if(event.getAction() == 2 && event.getHistorySize()>1)
-    	{
-    		xDif=event.getHistoricalX(0)-event.getHistoricalX(event.getHistorySize()-1);
-    		yDif=event.getHistoricalY(0)-event.getHistoricalY(event.getHistorySize()-1);
-    		double size = Math.pow(xDif,2) + Math.pow(yDif,2);
-    		size = Math.pow(size,0.5);
-    		if(xDif!=0)		xDif/=size;
-    		if(yDif!=0)		yDif/=size;
-    		size/=event.getHistorySize();
+    	try{
+	    	super.onTouchEvent(event);
+	    	testint = 1;
+	    	float xDif=0;
+	    	float yDif=0;
+	    	if(event.getAction() == 2 && event.getHistorySize()>1)
+	    	{
+	    		xDif=event.getHistoricalX(0)-event.getHistoricalX(event.getHistorySize()-1);
+	    		yDif=event.getHistoricalY(0)-event.getHistoricalY(event.getHistorySize()-1);
+	    		double size = Math.pow(xDif,2) + Math.pow(yDif,2);
+	    		size = Math.pow(size,0.5);
+	    		if(xDif!=0)		xDif/=size;
+	    		if(yDif!=0)		yDif/=size;
+	    		size/=event.getHistorySize();
+	    	}
+	    	else if(event.getAction() ==1)
+	    	{
+	    	}
+	    	else if(event.getAction()==0)
+	    	{
+	    			testint=2;
+	    			if(event.getY()>(yTileCount+1)*tileSize)
+	    				optionTouch(event);
+	    			else
+	    				mapTouch(event);
+	    	}
+	    	
+	    	
+	    	//debugText="xDif: "+xDif+"\nyDif: "+yDif+"\nHistory Size: "+event.getHistorySize();
+	    	
+	    	
+	    	test2=event;
+	    	
+	    	if(event.getAction()==2){
+	    		Scroll(xDif*scrollSpeed,yDif*scrollSpeed);
+	    	}
+	    	
+	    	prevEvent = event;
+    	}catch(NullPointerException e){
+    		e.printStackTrace();
     	}
-    	else if(event.getAction() ==1)
-    	{
-    	}
-    	else if(event.getAction()==0)
-    	{
-    			testint=2;
-    			if(event.getY()>(yTileCount+1)*tileSize)
-    				optionTouch(event);
-    			else
-    				mapTouch(event);
-    	}
-    	
-    	
-    	//debugText="xDif: "+xDif+"\nyDif: "+yDif+"\nHistory Size: "+event.getHistorySize();
-    	
-    	
-    	test2=event;
-    	
-    	if(event.getAction()==2){
-    		Scroll(xDif*scrollSpeed,yDif*scrollSpeed);
-    	}
-    	
-    	prevEvent = event;
     	
 		return super.onTouchEvent(event);
     }
@@ -626,14 +643,13 @@ public class GameView extends TileView {
     {
     	Coordinate cursorCandidate = new Coordinate((int)(event.getX()/tileSize)+xOffset, (int)(event.getY()/tileSize)+yOffset);
     	
-    	if (!drawCursor) acceptPressed(true);
+    	//This is if you want only accept when cursor isnt present
+    	//if (!drawCursor) acceptPressed(true);
     	
-    	else if(!limitCursor || contains(limitCursorArray, cursorCandidate))
-		{
+    	if(!drawCursor || !limitCursor || contains(limitCursorArray, cursorCandidate)){
 				cursor = cursorCandidate;
 				acceptPressed(true);
 		}	
-    	
 		else denyPressed();
     }
     
